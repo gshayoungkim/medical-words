@@ -13,7 +13,7 @@ const SLOT_HELP = {
   suffix: "질병·검사·처치"
 };
 const EMPTY_SELECTION = { prefix: "", root: "", suffix: "" };
-const EMPTY_PROGRESS = { attempts: 0, correct: 0, streak: 0, mastered: [] };
+const EMPTY_PROGRESS = { attempts: 0, correct: 0, streak: 0, mastered: [], attemptedQuizIds: [] };
 
 function findMorpheme(data, id) {
   if (!id) return null;
@@ -269,7 +269,17 @@ export default function StudentApp() {
 
   function nextQuiz() {
     if (!data.quizzes.length) return;
-    setQuizIndex((current) => data.quizzes.length === 1 ? 0 : (current + 1 + Math.floor(Math.random() * (data.quizzes.length - 1))) % data.quizzes.length);
+    const attemptedIds = new Set(progress.attemptedQuizIds || []);
+    const unattemptedIndexes = data.quizzes
+      .map((item, index) => ({ id: item.id, index }))
+      .filter((item) => !attemptedIds.has(item.id) && item.index !== quizIndex)
+      .map((item) => item.index);
+    const fallbackIndexes = data.quizzes
+      .map((_, index) => index)
+      .filter((index) => index !== quizIndex);
+    const pool = unattemptedIndexes.length ? unattemptedIndexes : fallbackIndexes;
+    const nextIndex = pool.length ? pool[Math.floor(Math.random() * pool.length)] : 0;
+    setQuizIndex(nextIndex);
     setQuizSelection(EMPTY_SELECTION);
     setQuizResult(null);
     setHint(false);
@@ -284,7 +294,10 @@ export default function StudentApp() {
       attempts: progress.attempts + 1,
       correct: progress.correct + (correct ? 1 : 0),
       streak: correct ? progress.streak + 1 : 0,
-      mastered: correct && !progress.mastered.includes(quiz.id) ? [...progress.mastered, quiz.id] : progress.mastered
+      mastered: correct && !progress.mastered.includes(quiz.id) ? [...progress.mastered, quiz.id] : progress.mastered,
+      attemptedQuizIds: (progress.attemptedQuizIds || []).includes(quiz.id)
+        ? (progress.attemptedQuizIds || [])
+        : [...(progress.attemptedQuizIds || []), quiz.id]
     };
     setProgress(nextProgress);
     medicalWordData.saveProgress(nextProgress);
@@ -414,7 +427,12 @@ export default function StudentApp() {
               </section>
               <section className="panel">
                 <article className={`mission-card${missionPulse ? " new-mission" : ""}`} key={missionPulse}>
-                  <div className="mission-label">TODAY&apos;S MISSION</div>
+                  <div className="mission-heading">
+                    <div className="mission-label">TODAY&apos;S MISSION</div>
+                    <div className="mission-count">
+                      푼 문제 {Math.min(progress.attemptedQuizIds?.length || 0, data.quizzes.length)} / 총 {data.quizzes.length}
+                    </div>
+                  </div>
                   <h3>{quiz?.prompt || "등록된 퀴즈가 없습니다."}</h3>
                   <div className="mission-meta">{hint ? `힌트 — ${hintText}` : "빈 칸은 사용하지 않아도 됩니다."}</div>
                   <div className="mission-actions">

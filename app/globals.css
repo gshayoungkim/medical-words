@@ -418,6 +418,23 @@ h1 {
 .mission-card.new-mission { animation: missionIn 0.42s cubic-bezier(.2, .8, .2, 1); }
 
 .mission-label { margin-bottom: 5px; color: #9a6a12; font-size: 12px; font-weight: 900; letter-spacing: 0.08em; }
+.mission-heading {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 5px;
+}
+.mission-heading .mission-label { margin-bottom: 0; }
+.mission-count {
+  color: #8c8c8c;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
 .mission-card h3 { margin-bottom: 7px; font-size: 20px; line-height: 1.35; }
 .mission-meta { color: #806f55; font-size: 13px; }
 .mission-actions { display: flex; gap: 8px; margin-top: 13px; }
