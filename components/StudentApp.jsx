@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { fetchSharedContent } from "@/lib/content-api";
 import { medicalWordData } from "@/lib/medical-data";
 
 const TYPES = ["prefix", "root", "suffix"];
@@ -217,17 +218,18 @@ export default function StudentApp() {
   const [burst, setBurst] = useState(0);
 
   useEffect(() => {
-    // localStorage는 서버 렌더링 중 접근할 수 없어 hydration 이후 동기화한다.
+    // 개인 진도는 브라우저 전용 데이터이므로 hydration 이후 읽는다.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setData(medicalWordData.getData());
     setProgress(medicalWordData.getProgress());
-    const sync = () => setData(medicalWordData.getData());
-    window.addEventListener("medical-data-changed", sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener("medical-data-changed", sync);
-      window.removeEventListener("storage", sync);
-    };
+    let active = true;
+    fetchSharedContent()
+      .then((result) => {
+        if (active) setData(result.content);
+      })
+      .catch((error) => {
+        console.warn("Neon 콘텐츠를 불러오지 못해 기본 데이터를 사용합니다.", error);
+      });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {

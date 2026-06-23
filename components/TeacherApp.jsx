@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { fetchSharedContent, saveSharedContent } from "@/lib/content-api";
 import { medicalWordData } from "@/lib/medical-data";
 
 const TYPES = ["prefix", "root", "suffix"];
@@ -34,11 +35,27 @@ export default function TeacherApp() {
   const [morphemeType, setMorphemeType] = useState("all");
   const [quizQuery, setQuizQuery] = useState("");
   const [toast, setToast] = useState("");
+  const [adminKey, setAdminKey] = useState("");
+  const [dbStatus, setDbStatus] = useState("loading");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    // localStorage는 서버 렌더링 중 접근할 수 없어 hydration 이후 동기화한다.
+    const savedKey = sessionStorage.getItem("medical-word-lab-admin-key") || "";
+    // 관리 키는 브라우저 세션에만 저장하므로 hydration 이후 읽는다.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setData(medicalWordData.getData());
+    setAdminKey(savedKey);
+    let active = true;
+    fetchSharedContent()
+      .then((result) => {
+        if (!active) return;
+        setData(result.content);
+        setDbStatus("connected");
+      })
+      .catch((error) => {
+        console.warn("Neon 콘텐츠 로드 실패", error);
+        if (active) setDbStatus("offline");
+      });
+    return () => { active = false; };
   }, []);
   useEffect(() => {
     if (!toast) return;
@@ -56,10 +73,21 @@ export default function TeacherApp() {
     [item.prompt, item.term, item.meaning, item.explanation].join(" ").toLowerCase().includes(quizQuery.toLowerCase())
   ), [data, quizQuery]);
 
-  function persist(nextData, message) {
-    setData(nextData);
-    medicalWordData.saveData(nextData);
-    setToast(message);
+  async function persist(nextData, message) {
+    setIsSaving(true);
+    try {
+      const result = await saveSharedContent(nextData, adminKey);
+      setData(result.content);
+      setDbStatus("connected");
+      setToast(message);
+      return true;
+    } catch (error) {
+      setDbStatus("offline");
+      setToast(error.message);
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function partText(id) {
@@ -71,7 +99,7 @@ export default function TeacherApp() {
     return "삭제된 블록";
   }
 
-  function saveMorpheme(event) {
+  async function saveMorpheme(event) {
     event.preventDefault();
     const next = structuredClone(data);
     const item = {
@@ -86,11 +114,11 @@ export default function TeacherApp() {
       });
     }
     next.morphemes[morpheme.type].push(item);
-    persist(next, morpheme.id ? "구성요소를 수정했습니다." : "구성요소를 추가했습니다.");
-    setMorpheme(EMPTY_MORPHEME);
+    const saved = await persist(next, morpheme.id ? "구성요소를 수정했습니다." : "구성요소를 추가했습니다.");
+    if (saved) setMorpheme(EMPTY_MORPHEME);
   }
 
-  function deleteMorpheme(type, id) {
+  async function deleteMorpheme(type, id) {
     const usedCount = data.quizzes.filter((item) => TYPES.some((part) => item[`${part}Id`] === id)).length;
     const message = usedCount
       ? `이 블록을 사용하는 퀴즈 ${usedCount}개도 함께 삭제됩니다. 계속할까요?`
@@ -99,10 +127,10 @@ export default function TeacherApp() {
     const next = structuredClone(data);
     next.morphemes[type] = next.morphemes[type].filter((item) => item.id !== id);
     next.quizzes = next.quizzes.filter((item) => !TYPES.some((part) => item[`${part}Id`] === id));
-    persist(next, "구성요소를 삭제했습니다.");
+    await persist(next, "구성요소를 삭제했습니다.");
   }
 
-  function saveQuiz(event) {
+  async function saveQuiz(event) {
     event.preventDefault();
     if (!quiz.prefixId && !quiz.rootId && !quiz.suffixId) {
       setToast("정답 구성요소를 하나 이상 선택하세요.");
@@ -122,13 +150,13 @@ export default function TeacherApp() {
     } else {
       next.quizzes.push(item);
     }
-    persist(next, quiz.id ? "퀴즈를 수정했습니다." : "퀴즈를 추가했습니다.");
-    setQuiz(EMPTY_QUIZ);
+    const saved = await persist(next, quiz.id ? "퀴즈를 수정했습니다." : "퀴즈를 추가했습니다.");
+    if (saved) setQuiz(EMPTY_QUIZ);
   }
 
-  function deleteQuiz(id) {
+  async function deleteQuiz(id) {
     if (!window.confirm("이 퀴즈를 삭제할까요?")) return;
-    persist({ ...data, quizzes: data.quizzes.filter((item) => item.id !== id) }, "퀴즈를 삭제했습니다.");
+    await persist({ ...data, quizzes: data.quizzes.filter((item) => item.id !== id) }, "퀴즈를 삭제했습니다.");
   }
 
   function exportData() {
@@ -150,7 +178,7 @@ export default function TeacherApp() {
       if (!parsed.morphemes || !parsed.quizzes || !TYPES.every((type) => Array.isArray(parsed.morphemes[type]))) {
         throw new Error("Invalid schema");
       }
-      persist(parsed, "수업 데이터를 가져왔습니다.");
+      await persist(parsed, "수업 데이터를 가져왔습니다.");
     } catch {
       setToast("올바른 Medical Word Lab JSON 파일이 아닙니다.");
     }
@@ -174,8 +202,25 @@ export default function TeacherApp() {
           <p>접두사·어근·접미사와 조립 퀴즈를 추가하거나 수정할 수 있습니다.</p>
         </section>
 
-        <div className="notice">
-          변경 내용은 현재 브라우저에 저장됩니다. 여러 기기에서 공용으로 관리하려면 추후 데이터베이스와 교사 인증을 연결해야 합니다.
+        <div className={`notice db-notice ${dbStatus}`}>
+          <div>
+            <strong>{dbStatus === "connected" ? "● Neon 연결됨" : dbStatus === "loading" ? "● Neon 연결 확인 중" : "● Neon 연결 안 됨"}</strong>
+            <span>{dbStatus === "connected" ? " 변경 내용이 모든 학생에게 공유됩니다." : " 환경변수와 DB 초기화를 확인하세요."}</span>
+          </div>
+          <label className="admin-key-field">
+            <span>교사용 관리 키</span>
+            <input
+              className="form-control"
+              type="password"
+              value={adminKey}
+              onChange={(event) => {
+                setAdminKey(event.target.value);
+                sessionStorage.setItem("medical-word-lab-admin-key", event.target.value);
+              }}
+              placeholder="TEACHER_ADMIN_KEY"
+              autoComplete="current-password"
+            />
+          </label>
         </div>
 
         <div className="teacher-layout">
@@ -231,7 +276,7 @@ export default function TeacherApp() {
                       </div>
                     </div>
                     <div className="form-actions">
-                      <button className="primary-button" type="submit">저장</button>
+                      <button className="primary-button" disabled={isSaving} type="submit">{isSaving ? "저장 중…" : "저장"}</button>
                       <button className="secondary-button" onClick={() => setMorpheme(EMPTY_MORPHEME)} type="button">입력 초기화</button>
                     </div>
                   </form>
@@ -296,7 +341,7 @@ export default function TeacherApp() {
                       </div>
                     </div>
                     <div className="form-actions">
-                      <button className="primary-button" type="submit">저장</button>
+                      <button className="primary-button" disabled={isSaving} type="submit">{isSaving ? "저장 중…" : "저장"}</button>
                       <button className="secondary-button" onClick={() => setQuiz(EMPTY_QUIZ)} type="button">입력 초기화</button>
                     </div>
                   </form>
@@ -327,13 +372,13 @@ export default function TeacherApp() {
                   <div className="data-actions">
                     <button className="primary-button" onClick={exportData} type="button">JSON 내보내기</button>
                     <label className="secondary-button import-label">JSON 가져오기<input className="file-input" type="file" accept="application/json,.json" onChange={importData} /></label>
-                    <button className="danger-button" onClick={() => {
+                    <button className="danger-button" disabled={isSaving} onClick={async () => {
                       if (!window.confirm("추가·수정한 모든 내용을 지우고 PDF 기본 데이터로 되돌릴까요?")) return;
-                      medicalWordData.resetData();
-                      setData(medicalWordData.getData());
-                      setMorpheme(EMPTY_MORPHEME);
-                      setQuiz(EMPTY_QUIZ);
-                      setToast("기본 데이터로 초기화했습니다.");
+                      const saved = await persist(medicalWordData.defaultData, "DB를 기본 데이터로 초기화했습니다.");
+                      if (saved) {
+                        setMorpheme(EMPTY_MORPHEME);
+                        setQuiz(EMPTY_QUIZ);
+                      }
                     }} type="button">PDF 기본 데이터로 초기화</button>
                   </div>
                 </section>

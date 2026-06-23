@@ -18,12 +18,39 @@ npm run dev
 
 ## Vercel 배포
 
-GitHub 저장소를 Vercel에 연결하면 Next.js 프로젝트로 자동 감지됩니다. 별도 빌드 설정은 필요하지 않습니다.
+GitHub 저장소를 Vercel에 연결하면 루트의 `package.json`과 `vercel.json`을 기준으로 Next.js 프로젝트로 감지됩니다.
+
+- Framework Preset: `Next.js`
+- Root Directory: 저장소 루트
+- Build Command: `npm run build`
+- Output Directory: 비워 둠
+
+Vercel 프로젝트가 기존에 `Other`로 생성됐다면 Project Settings → Build & Development Settings에서 Framework Preset을 `Next.js`로 변경하거나 프로젝트를 다시 Import하세요.
+
+## Neon 연결
+
+1. Neon 프로젝트에서 연결 문자열을 복사합니다.
+2. `.env.example`을 참고해 `.env.local`을 만듭니다.
+
+```bash
+DATABASE_URL=postgresql://...
+TEACHER_ADMIN_KEY=충분히-긴-임의의-관리키
+```
+
+3. 최초 한 번 테이블과 기본 콘텐츠를 생성합니다.
+
+```bash
+npm run db:setup
+```
+
+4. Vercel 프로젝트의 Environment Variables에도 `DATABASE_URL`과 `TEACHER_ADMIN_KEY`를 동일하게 등록합니다.
+
+학생 페이지는 Neon 콘텐츠를 공개적으로 읽습니다. 교사용 페이지의 쓰기 요청은 `TEACHER_ADMIN_KEY`로 보호되며, 입력한 키는 브라우저의 `sessionStorage`에만 보관됩니다.
 
 ## 데이터 관리
 
 - 교사용 페이지에서 Prefix, Root, Suffix와 퀴즈를 추가·수정·삭제할 수 있습니다.
-- 변경 내용은 현재 브라우저의 `localStorage`에 저장됩니다.
+- 변경 내용은 Neon Postgres의 `app_content` JSONB 문서에 저장되어 모든 기기에 공유됩니다.
 - `백업 및 복원` 메뉴에서 JSON 파일로 내보내거나 가져올 수 있습니다.
-- 현재 교사용 페이지에는 서버 인증 기능이 없고 데이터는 브라우저별로 저장됩니다.
-- 여러 교사가 데이터를 공유하거나 학생별 결과를 수집하려면 서버 데이터베이스와 인증 기능이 필요합니다.
+- 학생의 개인 정답률과 연속 정답 기록은 개인정보 수집을 피하기 위해 현재 브라우저에만 저장됩니다.
+- 관리 키 방식은 초기 운영용입니다. 다수의 교사가 사용한다면 추후 정식 계정 인증으로 교체해야 합니다.
