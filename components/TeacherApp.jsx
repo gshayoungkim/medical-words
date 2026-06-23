@@ -8,7 +8,8 @@ import {
   removeQuiz,
   saveMorpheme as saveMorphemeRequest,
   saveQuiz as saveQuizRequest,
-  saveSharedContent
+  saveSharedContent,
+  verifyAdminKey
 } from "@/lib/content-api";
 import { medicalWordData } from "@/lib/medical-data";
 
@@ -43,14 +44,32 @@ export default function TeacherApp() {
   const [quizQuery, setQuizQuery] = useState("");
   const [toast, setToast] = useState("");
   const [adminKey, setAdminKey] = useState("");
+  const [authStatus, setAuthStatus] = useState("checking");
+  const [authError, setAuthError] = useState("");
   const [dbStatus, setDbStatus] = useState("loading");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const savedKey = sessionStorage.getItem("medical-word-lab-admin-key") || "";
-    // 관리 키는 브라우저 세션에만 저장하므로 hydration 이후 읽는다.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAdminKey(savedKey);
+    if (!savedKey) {
+      // 브라우저 세션 전용 값이므로 hydration 이후 잠금 상태를 결정한다.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAuthStatus("locked");
+      return;
+    }
+    verifyAdminKey(savedKey)
+      .then(() => {
+        setAdminKey(savedKey);
+        setAuthStatus("unlocked");
+      })
+      .catch(() => {
+        sessionStorage.removeItem("medical-word-lab-admin-key");
+        setAuthStatus("locked");
+      });
+  }, []);
+
+  useEffect(() => {
+    if (authStatus !== "unlocked") return;
     let active = true;
     fetchSharedContent()
       .then((result) => {
@@ -63,7 +82,7 @@ export default function TeacherApp() {
         if (active) setDbStatus("offline");
       });
     return () => { active = false; };
-  }, []);
+  }, [authStatus]);
   useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(""), 2200);
@@ -79,6 +98,27 @@ export default function TeacherApp() {
   const quizItems = useMemo(() => data.quizzes.filter((item) =>
     [item.prompt, item.term, item.meaning, item.explanation].join(" ").toLowerCase().includes(quizQuery.toLowerCase())
   ), [data, quizQuery]);
+
+  async function unlockTeacherPage(event) {
+    event.preventDefault();
+    setAuthError("");
+    setAuthStatus("checking");
+    try {
+      await verifyAdminKey(adminKey);
+      sessionStorage.setItem("medical-word-lab-admin-key", adminKey);
+      setAuthStatus("unlocked");
+    } catch (error) {
+      setAuthError(error.message);
+      setAuthStatus("locked");
+    }
+  }
+
+  function logoutTeacherPage() {
+    sessionStorage.removeItem("medical-word-lab-admin-key");
+    setAdminKey("");
+    setAuthError("");
+    setAuthStatus("locked");
+  }
 
   async function persist(nextData, message) {
     setIsSaving(true);
@@ -200,6 +240,48 @@ export default function TeacherApp() {
     event.target.value = "";
   }
 
+  if (authStatus !== "unlocked") {
+    return (
+      <>
+        <header className="topbar">
+          <Link className="brand" href="/">
+            <span className="brand-mark">M</span>
+            <span className="brand-text">Medical Word Lab · Teacher</span>
+          </Link>
+          <nav className="top-actions"><Link className="top-link" href="/">학생 페이지로 돌아가기</Link></nav>
+        </header>
+        <main className="teacher-lock-page">
+          <section className="teacher-lock-card">
+            <div className="lock-illustration" aria-hidden="true">🔐</div>
+            <p className="eyebrow">Teacher only</p>
+            <h1>교사용 페이지</h1>
+            <p>수업 콘텐츠를 관리하려면 교사용 코드를 입력하세요.</p>
+            <form onSubmit={unlockTeacherPage}>
+              <label className="form-group" htmlFor="teacher-entry-code">
+                <span>교사용 코드</span>
+                <input
+                  className="form-control teacher-code-input"
+                  id="teacher-entry-code"
+                  type="password"
+                  value={adminKey}
+                  onChange={(event) => setAdminKey(event.target.value)}
+                  placeholder="관리 코드를 입력하세요"
+                  autoComplete="current-password"
+                  autoFocus
+                  required
+                />
+              </label>
+              {authError && <p className="auth-error" role="alert">{authError}</p>}
+              <button className="primary-button wide-button" disabled={authStatus === "checking"} type="submit">
+                {authStatus === "checking" ? "확인 중…" : "교사용 페이지 열기"}
+              </button>
+            </form>
+          </section>
+        </main>
+      </>
+    );
+  }
+
   return (
     <>
       <header className="topbar">
@@ -222,20 +304,7 @@ export default function TeacherApp() {
             <strong>{dbStatus === "connected" ? "● Neon 연결됨" : dbStatus === "loading" ? "● Neon 연결 확인 중" : "● Neon 연결 안 됨"}</strong>
             <span>{dbStatus === "connected" ? " 변경 내용이 모든 학생에게 공유됩니다." : " 환경변수와 DB 초기화를 확인하세요."}</span>
           </div>
-          <label className="admin-key-field">
-            <span>교사용 관리 키</span>
-            <input
-              className="form-control"
-              type="password"
-              value={adminKey}
-              onChange={(event) => {
-                setAdminKey(event.target.value);
-                sessionStorage.setItem("medical-word-lab-admin-key", event.target.value);
-              }}
-              placeholder="TEACHER_ADMIN_KEY"
-              autoComplete="current-password"
-            />
-          </label>
+          <button className="secondary-button" onClick={logoutTeacherPage} type="button">교사용 페이지 잠그기</button>
         </div>
 
         <div className="teacher-layout">
