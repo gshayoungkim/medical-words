@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="접두사, 어근, 접미사를 조립하며 배우는 의학용어 학습 페이지">
+  <title>Medical Word Lab | 의학용어 조립 학습</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="floating-decor decor-pill" aria-hidden="true">💊</div>
+  <div class="floating-decor decor-heart" aria-hidden="true">💗</div>
+  <div class="floating-decor decor-bandage" aria-hidden="true">🩹</div>
+  <div class="floating-decor decor-sparkle" aria-hidden="true">✨</div>
+  <header class="topbar">
+    <a class="brand" href="index.html">
+      <span class="brand-mark">M</span>
+      <span class="brand-text">Medical Word Lab</span>
+    </a>
+    <nav class="top-actions" aria-label="주요 메뉴">
+      <a class="top-link" href="#learn">학습하기</a>
+      <a class="top-link" href="teacher.html">교사용 페이지</a>
+    </nav>
+  </header>
+
+  <main class="page-shell">
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="hero-sticker" aria-hidden="true">🩺</div>
+        <p class="eyebrow">Medical terminology workshop</p>
+        <h1>의학용어를<br><span class="highlight-text">레고처럼 조립해요!</span></h1>
+        <p>Prefix는 상태, Root는 신체 부위와 물질, Suffix는 질병·검사·처치를 설명합니다. 블록을 선택해 직접 조립해 보세요.</p>
+        <div class="hero-legend" aria-label="블록 색상 안내">
+          <span class="legend-prefix">앞 · Prefix</span>
+          <span class="legend-root">몸통 · Root</span>
+          <span class="legend-suffix">끝 · Suffix</span>
+        </div>
+      </div>
+      <aside class="progress-card" aria-label="학습 현황">
+        <div>
+          <p class="eyebrow">My progress</p>
+          <div class="score-number"><span id="accuracy">0</span><small>% 정답률</small></div>
+          <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+        </div>
+        <div class="mini-stats">
+          <div class="mini-stat"><strong id="attempt-count">0</strong><span>도전</span></div>
+          <div class="mini-stat"><strong id="correct-count">0</strong><span>정답</span></div>
+          <div class="mini-stat"><strong id="streak-count">0</strong><span>연속 정답</span></div>
+        </div>
+      </aside>
+    </section>
+
+    <div class="mode-tabs" id="learn" role="tablist" aria-label="학습 모드">
+      <button class="tab-button active" data-tab="quiz" role="tab">미션 퀴즈</button>
+      <button class="tab-button" data-tab="free" role="tab">자유 조립</button>
+      <button class="tab-button" data-tab="dictionary" role="tab">블록 사전</button>
+    </div>
+
+    <section class="mode-panel active" id="panel-quiz">
+      <div class="workspace">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>블록 보관함</h2>
+              <p>클릭하거나 조립판으로 끌어 놓으세요.</p>
+            </div>
+            <input class="search-input" id="quiz-search" type="search" placeholder="블록 검색" aria-label="퀴즈 블록 검색">
+          </div>
+          <div class="bank-grid" id="quiz-bank"></div>
+        </section>
+
+        <section class="panel">
+          <article class="mission-card" id="mission-card">
+            <div class="mission-label">TODAY'S MISSION</div>
+            <h3 id="mission-prompt">퀴즈를 준비하고 있습니다.</h3>
+            <div class="mission-meta" id="mission-meta"></div>
+            <div class="mission-actions">
+              <button class="secondary-button" id="hint-button" type="button">힌트 보기</button>
+              <button class="secondary-button" id="next-button" type="button">다른 문제</button>
+            </div>
+          </article>
+
+          <div class="assembly-board" id="quiz-board" aria-label="퀴즈 조립판"></div>
+          <button class="primary-button wide-button" id="check-quiz" type="button">정답 확인</button>
+          <article class="result-card" id="quiz-result" aria-live="polite"></article>
+        </section>
+      </div>
+    </section>
+
+    <section class="mode-panel" id="panel-free">
+      <div class="workspace">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>전체 블록</h2>
+              <p>원하는 조합을 자유롭게 실험해 보세요.</p>
+            </div>
+            <input class="search-input" id="free-search" type="search" placeholder="뜻 또는 철자" aria-label="자유 조립 블록 검색">
+          </div>
+          <div class="bank-grid" id="free-bank"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>자유 조립판</h2>
+              <p>등록된 퀴즈 조합이면 표준 용어와 뜻을 보여줍니다.</p>
+            </div>
+            <button class="secondary-button" id="clear-free" type="button">비우기</button>
+          </div>
+          <div class="assembly-board" id="free-board" aria-label="자유 조립판"></div>
+          <button class="primary-button wide-button" id="check-free" type="button">조합 해석하기</button>
+          <article class="result-card" id="free-result" aria-live="polite"></article>
+        </section>
+      </div>
+    </section>
+
+    <section class="mode-panel" id="panel-dictionary">
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Prefix · Root · Suffix 사전</h2>
+            <p>강의 PDF 27–37페이지의 핵심 구성요소를 정리했습니다.</p>
+          </div>
+        </div>
+        <div class="dictionary-tools">
+          <input class="search-input" id="dictionary-search" type="search" placeholder="예: 심장, cardi, 염증" aria-label="사전 검색">
+        </div>
+        <div class="dictionary-grid" id="dictionary-grid"></div>
+      </section>
+    </section>
+  </main>
+
+  <div class="celebration-layer" id="celebration-layer" aria-hidden="true"></div>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

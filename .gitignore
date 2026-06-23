@@ -1,0 +1,7 @@
+.next
+node_modules
+.vercel
+.DS_Store
+npm-debug.log*
+gemini-code-1782113949265.html
+의료용어.pdf

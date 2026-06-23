@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Medical Word Lab 교사용 콘텐츠 관리 페이지">
+  <title>교사용 관리 | Medical Word Lab</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="index.html">
+      <span class="brand-mark">M</span>
+      <span class="brand-text">Medical Word Lab · Teacher</span>
+    </a>
+    <nav class="top-actions">
+      <a class="top-link" href="index.html">학생 페이지 보기</a>
+    </nav>
+  </header>
+
+  <main class="page-shell">
+    <section class="hero-copy" style="margin-bottom: 24px;">
+      <p class="eyebrow">Teacher workspace</p>
+      <h1 style="font-size: clamp(34px, 4vw, 52px);">수업 콘텐츠 관리</h1>
+      <p>접두사·어근·접미사와 조립 퀴즈를 추가하거나 수정할 수 있습니다.</p>
+    </section>
+
+    <div class="notice">
+      이 페이지는 정적 웹앱의 관리 화면입니다. 변경 내용은 현재 브라우저에 저장되며 보안 로그인 기능은 없습니다. 배포 전에는 JSON으로 백업하세요.
+    </div>
+
+    <div class="teacher-layout">
+      <nav class="panel teacher-nav" aria-label="교사용 메뉴">
+        <button class="active" data-section="overview">현황</button>
+        <button data-section="morphemes">구성요소 관리</button>
+        <button data-section="quizzes">퀴즈 관리</button>
+        <button data-section="data">백업 및 복원</button>
+      </nav>
+
+      <div>
+        <section class="teacher-section active" id="section-overview">
+          <div class="summary-cards" id="summary-cards"></div>
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>운영 안내</h2>
+                <p>수업 전 아래 순서로 점검하세요.</p>
+              </div>
+            </div>
+            <ol>
+              <li>구성요소 관리에서 필요한 Prefix, Root, Suffix를 등록합니다.</li>
+              <li>퀴즈 관리에서 문제와 정답 조합, 완성 용어를 지정합니다.</li>
+              <li>학생 페이지에서 퀴즈가 의도대로 출제되는지 확인합니다.</li>
+              <li>백업 및 복원 메뉴에서 수업 데이터를 JSON으로 내려받습니다.</li>
+            </ol>
+          </section>
+        </section>
+
+        <section class="teacher-section" id="section-morphemes">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>구성요소 추가·수정</h2>
+                <p>수정할 항목은 아래 목록에서 ‘수정’을 누르세요.</p>
+              </div>
+            </div>
+            <form id="morpheme-form">
+              <input type="hidden" id="morpheme-id">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="morpheme-type">분류</label>
+                  <select class="form-control" id="morpheme-type" required>
+                    <option value="prefix">Prefix</option>
+                    <option value="root">Root</option>
+                    <option value="suffix">Suffix</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="morpheme-text">표기</label>
+                  <input class="form-control" id="morpheme-text" required placeholder="예: hyper">
+                </div>
+                <div class="form-group">
+                  <label for="morpheme-meaning">의미</label>
+                  <input class="form-control" id="morpheme-meaning" required placeholder="예: 높은, 과도한">
+                </div>
+                <div class="form-group">
+                  <label for="morpheme-example">예시</label>
+                  <input class="form-control" id="morpheme-example" placeholder="예: hyperglycemia">
+                </div>
+              </div>
+              <div class="form-actions">
+                <button class="primary-button" type="submit">저장</button>
+                <button class="secondary-button" id="cancel-morpheme" type="button">입력 초기화</button>
+              </div>
+            </form>
+            <div class="dictionary-tools" style="margin-top: 24px;">
+              <input class="search-input" id="morpheme-filter" type="search" placeholder="구성요소 검색">
+              <select class="form-control" id="morpheme-filter-type" style="max-width: 170px;">
+                <option value="all">전체 분류</option>
+                <option value="prefix">Prefix</option>
+                <option value="root">Root</option>
+                <option value="suffix">Suffix</option>
+              </select>
+            </div>
+            <div class="management-list" id="morpheme-list"></div>
+          </section>
+        </section>
+
+        <section class="teacher-section" id="section-quizzes">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>퀴즈 추가·수정</h2>
+                <p>사용하지 않는 구성요소 칸은 ‘없음’으로 두세요.</p>
+              </div>
+            </div>
+            <form id="quiz-form">
+              <input type="hidden" id="quiz-id">
+              <div class="form-grid">
+                <div class="form-group full">
+                  <label for="quiz-prompt">문제</label>
+                  <textarea class="form-control" id="quiz-prompt" rows="3" required placeholder="학생에게 보여줄 상황 또는 정의"></textarea>
+                </div>
+                <div class="form-group">
+                  <label for="quiz-prefix">Prefix 정답</label>
+                  <select class="form-control" id="quiz-prefix"></select>
+                </div>
+                <div class="form-group">
+                  <label for="quiz-root">Root 정답</label>
+                  <select class="form-control" id="quiz-root"></select>
+                </div>
+                <div class="form-group">
+                  <label for="quiz-suffix">Suffix 정답</label>
+                  <select class="form-control" id="quiz-suffix"></select>
+                </div>
+                <div class="form-group">
+                  <label for="quiz-term">완성 용어</label>
+                  <input class="form-control" id="quiz-term" required placeholder="예: hyperglycemia">
+                </div>
+                <div class="form-group">
+                  <label for="quiz-meaning">한국어 뜻</label>
+                  <input class="form-control" id="quiz-meaning" required placeholder="예: 고혈당">
+                </div>
+                <div class="form-group">
+                  <label for="quiz-explanation">구조 설명</label>
+                  <input class="form-control" id="quiz-explanation" placeholder="예: 높은 + 당 + 혈액 상태">
+                </div>
+              </div>
+              <div class="form-actions">
+                <button class="primary-button" type="submit">저장</button>
+                <button class="secondary-button" id="cancel-quiz" type="button">입력 초기화</button>
+              </div>
+            </form>
+            <div class="dictionary-tools" style="margin-top: 24px;">
+              <input class="search-input" id="quiz-filter" type="search" placeholder="문제, 용어, 뜻 검색">
+            </div>
+            <div class="management-list" id="quiz-list"></div>
+          </section>
+        </section>
+
+        <section class="teacher-section" id="section-data">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>데이터 백업 및 복원</h2>
+                <p>다른 컴퓨터나 브라우저로 수업 콘텐츠를 옮길 때 사용합니다.</p>
+              </div>
+            </div>
+            <div class="data-actions">
+              <button class="primary-button" id="export-data" type="button">JSON 내보내기</button>
+              <button class="secondary-button" id="import-trigger" type="button">JSON 가져오기</button>
+              <button class="danger-button" id="reset-data" type="button">PDF 기본 데이터로 초기화</button>
+              <input class="file-input" id="import-data" type="file" accept="application/json,.json">
+            </div>
+          </section>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <div class="toast" id="toast" role="status"></div>
+  <script src="data.js"></script>
+  <script src="teacher.js"></script>
+</body>
+</html>
