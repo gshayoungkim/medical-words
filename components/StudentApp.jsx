@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { fetchSharedContent } from "@/lib/content-api";
+import { fetchSharedContent, registerStudent } from "@/lib/content-api";
 import { medicalWordData } from "@/lib/medical-data";
 
 const TYPES = ["prefix", "root", "suffix"];
@@ -14,6 +14,7 @@ const SLOT_HELP = {
 };
 const EMPTY_SELECTION = { prefix: "", root: "", suffix: "" };
 const EMPTY_PROGRESS = { attempts: 0, correct: 0, streak: 0, mastered: [], attemptedQuizIds: [] };
+const STUDENT_PROFILE_KEY = "medical-word-lab-student-v1";
 
 function findMorpheme(data, id) {
   if (!id) return null;
@@ -216,6 +217,11 @@ export default function StudentApp() {
   const [lastPlaced, setLastPlaced] = useState({ quiz: "", free: "" });
   const [toast, setToast] = useState("");
   const [burst, setBurst] = useState(0);
+  const [student, setStudent] = useState(null);
+  const [nicknameDraft, setNicknameDraft] = useState("");
+  const [showNicknameForm, setShowNicknameForm] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [nicknameError, setNicknameError] = useState("");
 
   useEffect(() => {
     // 개인 진도는 브라우저 전용 데이터이므로 hydration 이후 읽는다.
@@ -230,6 +236,27 @@ export default function StudentApp() {
         console.warn("Neon 콘텐츠를 불러오지 못해 기본 데이터를 사용합니다.", error);
       });
     return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(STUDENT_PROFILE_KEY);
+    if (!saved) {
+      // 첫 방문 여부는 브라우저 저장소 확인 후 결정한다.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setShowNicknameForm(true);
+      return;
+    }
+    try {
+      const profile = JSON.parse(saved);
+      setStudent(profile);
+      setNicknameDraft(profile.nickname || "");
+      registerStudent(profile).catch((error) => {
+        console.warn("학생 최근 접속 갱신 실패", error);
+      });
+    } catch {
+      localStorage.removeItem(STUDENT_PROFILE_KEY);
+      setShowNicknameForm(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -362,6 +389,29 @@ export default function StudentApp() {
     });
   }
 
+  async function submitNickname(event) {
+    event.preventDefault();
+    const nickname = nicknameDraft.trim();
+    if (!nickname || nickname.length > 20) {
+      setNicknameError("닉네임은 1~20자로 입력하세요.");
+      return;
+    }
+    setIsRegistering(true);
+    setNicknameError("");
+    try {
+      const id = student?.id || crypto.randomUUID();
+      const result = await registerStudent({ id, nickname });
+      setStudent(result.student);
+      localStorage.setItem(STUDENT_PROFILE_KEY, JSON.stringify(result.student));
+      setShowNicknameForm(false);
+      setToast(student ? "닉네임을 변경했습니다." : "닉네임을 등록했습니다.");
+    } catch (error) {
+      setNicknameError(error.message);
+    } finally {
+      setIsRegistering(false);
+    }
+  }
+
   return (
     <>
       <div className="floating-decor decor-pill" aria-hidden="true">💊</div>
@@ -377,6 +427,16 @@ export default function StudentApp() {
         <nav className="top-actions" aria-label="주요 메뉴">
           <a className="top-link" href="#learn">학습하기</a>
           <Link className="top-link" href="/teacher">교사용 페이지</Link>
+          {student && (
+            <button className="student-nickname" onClick={() => {
+              setNicknameDraft(student.nickname);
+              setNicknameError("");
+              setShowNicknameForm(true);
+            }} type="button" title="닉네임 변경">
+              <span aria-hidden="true">👤</span>
+              {student.nickname}
+            </button>
+          )}
         </nav>
       </header>
 
@@ -515,6 +575,35 @@ export default function StudentApp() {
 
       <Confetti burst={burst} />
       <div className={`toast${toast ? " visible" : ""}`} role="status">{toast}</div>
+      {showNicknameForm && (
+        <div className="nickname-overlay" role="dialog" aria-modal="true" aria-labelledby="nickname-title">
+          <section className="nickname-card">
+            <div className="nickname-illustration" aria-hidden="true">👋</div>
+            <p className="eyebrow">Welcome to Medical Word Lab</p>
+            <h2 id="nickname-title">{student ? "닉네임 변경" : "수업에 참여할게요!"}</h2>
+            <p>수업에서 사용할 닉네임을 입력하세요.<br />이름 대신 별명을 사용해도 됩니다.</p>
+            <form onSubmit={submitNickname}>
+              <input
+                className="form-control nickname-input"
+                type="text"
+                value={nicknameDraft}
+                onChange={(event) => setNicknameDraft(event.target.value)}
+                placeholder="예: 심장박사"
+                maxLength={20}
+                autoFocus
+                required
+              />
+              {nicknameError && <p className="auth-error" role="alert">{nicknameError}</p>}
+              <button className="primary-button wide-button" disabled={isRegistering} type="submit">
+                {isRegistering ? "등록 중…" : student ? "닉네임 저장" : "학습 시작하기"}
+              </button>
+              {student && (
+                <button className="nickname-cancel" onClick={() => setShowNicknameForm(false)} type="button">취소</button>
+              )}
+            </form>
+          </section>
+        </div>
+      )}
     </>
   );
 }

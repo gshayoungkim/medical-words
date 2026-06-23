@@ -34,3 +34,12 @@ CREATE INDEX IF NOT EXISTS quizzes_sort_idx ON quizzes (sort_order);
 CREATE INDEX IF NOT EXISTS quizzes_prefix_idx ON quizzes (prefix_id);
 CREATE INDEX IF NOT EXISTS quizzes_root_idx ON quizzes (root_id);
 CREATE INDEX IF NOT EXISTS quizzes_suffix_idx ON quizzes (suffix_id);
+
+CREATE TABLE IF NOT EXISTS students (
+  id TEXT PRIMARY KEY,
+  nickname TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS students_last_seen_idx ON students (last_seen_at DESC);

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   fetchSharedContent,
+  fetchStudentStats,
   removeMorpheme,
   removeQuiz,
   saveMorpheme as saveMorphemeRequest,
@@ -48,6 +49,7 @@ export default function TeacherApp() {
   const [authError, setAuthError] = useState("");
   const [dbStatus, setDbStatus] = useState("loading");
   const [isSaving, setIsSaving] = useState(false);
+  const [studentStats, setStudentStats] = useState({ total: 0, activeWeek: 0 });
 
   useEffect(() => {
     const savedKey = sessionStorage.getItem("medical-word-lab-admin-key") || "";
@@ -71,10 +73,11 @@ export default function TeacherApp() {
   useEffect(() => {
     if (authStatus !== "unlocked") return;
     let active = true;
-    fetchSharedContent()
-      .then((result) => {
+    Promise.all([fetchSharedContent(), fetchStudentStats(adminKey)])
+      .then(([result, stats]) => {
         if (!active) return;
         setData(result.content);
+        setStudentStats(stats);
         setDbStatus("connected");
       })
       .catch((error) => {
@@ -82,7 +85,7 @@ export default function TeacherApp() {
         if (active) setDbStatus("offline");
       });
     return () => { active = false; };
-  }, [authStatus]);
+  }, [authStatus, adminKey]);
   useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(""), 2200);
@@ -318,10 +321,17 @@ export default function TeacherApp() {
             {section === "overview" && (
               <section className="teacher-section active">
                 <div className="summary-cards">
-                  {[["Prefix", data.morphemes.prefix.length], ["Root", data.morphemes.root.length], ["Suffix", data.morphemes.suffix.length], ["Quiz", data.quizzes.length]].map(([label, count]) => (
+                  {[
+                    ["Prefix", data.morphemes.prefix.length],
+                    ["Root", data.morphemes.root.length],
+                    ["Suffix", data.morphemes.suffix.length],
+                    ["Quiz", data.quizzes.length],
+                    ["학생", studentStats.total]
+                  ].map(([label, count]) => (
                     <div className="summary-card" key={label}><strong>{count}</strong><span>{label} 등록</span></div>
                   ))}
                 </div>
+                <p className="student-stat-note">최근 7일 접속 학생: {studentStats.activeWeek}명</p>
                 <section className="panel">
                   <div className="panel-header"><div><h2>운영 안내</h2><p>수업 전 아래 순서로 점검하세요.</p></div></div>
                   <ol>

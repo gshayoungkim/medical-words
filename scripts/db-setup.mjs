@@ -44,7 +44,16 @@ await sql.transaction((tx) => [
   tx`CREATE INDEX IF NOT EXISTS quizzes_sort_idx ON quizzes (sort_order)`,
   tx`CREATE INDEX IF NOT EXISTS quizzes_prefix_idx ON quizzes (prefix_id)`,
   tx`CREATE INDEX IF NOT EXISTS quizzes_root_idx ON quizzes (root_id)`,
-  tx`CREATE INDEX IF NOT EXISTS quizzes_suffix_idx ON quizzes (suffix_id)`
+  tx`CREATE INDEX IF NOT EXISTS quizzes_suffix_idx ON quizzes (suffix_id)`,
+  tx`
+    CREATE TABLE IF NOT EXISTS students (
+      id TEXT PRIMARY KEY,
+      nickname TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `,
+  tx`CREATE INDEX IF NOT EXISTS students_last_seen_idx ON students (last_seen_at DESC)`
 ]);
 
 const [{ count }] = await sql`SELECT COUNT(*)::INTEGER AS count FROM morphemes`;
