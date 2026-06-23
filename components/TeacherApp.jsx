@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { fetchSharedContent, saveSharedContent } from "@/lib/content-api";
+import {
+  fetchSharedContent,
+  removeMorpheme,
+  removeQuiz,
+  saveMorpheme as saveMorphemeRequest,
+  saveQuiz as saveQuizRequest,
+  saveSharedContent
+} from "@/lib/content-api";
 import { medicalWordData } from "@/lib/medical-data";
 
 const TYPES = ["prefix", "root", "suffix"];
@@ -90,6 +97,23 @@ export default function TeacherApp() {
     }
   }
 
+  async function runMutation(action, message) {
+    setIsSaving(true);
+    try {
+      const result = await action();
+      setData(result.content);
+      setDbStatus("connected");
+      setToast(message);
+      return true;
+    } catch (error) {
+      setDbStatus("offline");
+      setToast(error.message);
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   function partText(id) {
     if (!id) return "없음";
     for (const type of TYPES) {
@@ -101,20 +125,17 @@ export default function TeacherApp() {
 
   async function saveMorpheme(event) {
     event.preventDefault();
-    const next = structuredClone(data);
     const item = {
       id: morpheme.id || makeId(morpheme.type),
+      type: morpheme.type,
       text: morpheme.text.trim(),
       meaning: morpheme.meaning.trim(),
       example: morpheme.example.trim()
     };
-    if (morpheme.id) {
-      TYPES.forEach((type) => {
-        next.morphemes[type] = next.morphemes[type].filter((entry) => entry.id !== morpheme.id);
-      });
-    }
-    next.morphemes[morpheme.type].push(item);
-    const saved = await persist(next, morpheme.id ? "구성요소를 수정했습니다." : "구성요소를 추가했습니다.");
+    const saved = await runMutation(
+      () => saveMorphemeRequest(item, adminKey),
+      morpheme.id ? "구성요소를 수정했습니다." : "구성요소를 추가했습니다."
+    );
     if (saved) setMorpheme(EMPTY_MORPHEME);
   }
 
@@ -124,10 +145,7 @@ export default function TeacherApp() {
       ? `이 블록을 사용하는 퀴즈 ${usedCount}개도 함께 삭제됩니다. 계속할까요?`
       : "이 구성요소를 삭제할까요?";
     if (!window.confirm(message)) return;
-    const next = structuredClone(data);
-    next.morphemes[type] = next.morphemes[type].filter((item) => item.id !== id);
-    next.quizzes = next.quizzes.filter((item) => !TYPES.some((part) => item[`${part}Id`] === id));
-    await persist(next, "구성요소를 삭제했습니다.");
+    await runMutation(() => removeMorpheme(id, adminKey), "구성요소를 삭제했습니다.");
   }
 
   async function saveQuiz(event) {
@@ -144,19 +162,16 @@ export default function TeacherApp() {
       meaning: quiz.meaning.trim(),
       explanation: quiz.explanation.trim()
     };
-    const next = structuredClone(data);
-    if (quiz.id) {
-      next.quizzes = next.quizzes.map((entry) => entry.id === quiz.id ? item : entry);
-    } else {
-      next.quizzes.push(item);
-    }
-    const saved = await persist(next, quiz.id ? "퀴즈를 수정했습니다." : "퀴즈를 추가했습니다.");
+    const saved = await runMutation(
+      () => saveQuizRequest(item, adminKey),
+      quiz.id ? "퀴즈를 수정했습니다." : "퀴즈를 추가했습니다."
+    );
     if (saved) setQuiz(EMPTY_QUIZ);
   }
 
   async function deleteQuiz(id) {
     if (!window.confirm("이 퀴즈를 삭제할까요?")) return;
-    await persist({ ...data, quizzes: data.quizzes.filter((item) => item.id !== id) }, "퀴즈를 삭제했습니다.");
+    await runMutation(() => removeQuiz(id, adminKey), "퀴즈를 삭제했습니다.");
   }
 
   function exportData() {
@@ -258,7 +273,7 @@ export default function TeacherApp() {
                     <div className="form-grid">
                       <div className="form-group">
                         <label htmlFor="morpheme-type">분류</label>
-                        <select className="form-control" id="morpheme-type" value={morpheme.type} onChange={(event) => setMorpheme({ ...morpheme, type: event.target.value })}>
+                        <select className="form-control" disabled={Boolean(morpheme.id)} id="morpheme-type" value={morpheme.type} onChange={(event) => setMorpheme({ ...morpheme, type: event.target.value })}>
                           {TYPES.map((type) => <option value={type} key={type}>{LABELS[type]}</option>)}
                         </select>
                       </div>
