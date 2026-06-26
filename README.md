@@ -13,6 +13,7 @@ npm run dev
 
 - 학생 페이지: <http://localhost:3000>
 - 교사용 페이지: <http://localhost:3000/teacher>
+- OUTRO 기획 캔버스: <http://localhost:3000/outro/planning-canvas>
 
 프로덕션 빌드는 `npm run build`로 확인할 수 있습니다.
 

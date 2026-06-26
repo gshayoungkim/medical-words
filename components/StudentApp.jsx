@@ -426,6 +426,7 @@ export default function StudentApp() {
         </Link>
         <nav className="top-actions" aria-label="주요 메뉴">
           <a className="top-link" href="#learn">학습하기</a>
+          <Link className="top-link" href="/outro/planning-canvas">기획 캔버스</Link>
           <Link className="top-link" href="/teacher">교사용 페이지</Link>
           {student && (
             <button className="student-nickname" onClick={() => {
